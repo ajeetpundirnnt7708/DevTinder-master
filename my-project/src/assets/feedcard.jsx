@@ -1,156 +1,122 @@
-// import axios from "axios";
-// import { useDispatch } from "react-redux";
-// import { removeUserFromFeed } from "../utils/feedslice";
-
-// const Feedcard = ({ user }) => {
-//   const dispatch = useDispatch();
-
-//   if (!user) return null;
-
-//   const { _id, firstName, lastName, photoUrl, age, about } = user;
-
-//   const handleSendRequest = async (status) => {
-//     try {
-//       await axios.post(
-//         `http://localhost:4003/request/send/${status}/${_id}`,
-//         {},
-//         { withCredentials: true }
-//       );
-//       dispatch(removeUserFromFeed());
-//     } catch (err) {
-//       console.log(err);
-//     }
-//   };
-
-//   return (
-//     <div className="card bg-base-300 w-70 h-auto shadow-sm">
-//       <figure>
-//         <img
-//           src={photoUrl}
-//           alt="Shoes"
-//           className="h-70 w-70 "
-//         />
-//       </figure>
-//       <div className="card-body">
-//         <h2 className="text-1.5xl,font-mono font-bold -ml-3">{firstName + " " + lastName + " " + age}
-//         </h2>
-//         <span className="text-1.5xl font-mono -ml-3 font-bold ">{about}</span>
-//         <div className="flex justify-center items-end gap-4 mt-6">
-
-//           <button
-//             className="btn btn-circle w-12 h-12 translate-y-3
-//                transition-all duration-200 active:scale-90 hover:scale-105"
-//             onClick={handleSendRequest}
-//           >
-//             <span className="text-3xl">🔄️</span>
-//           </button>
-
-//           <button
-//             className="btn btn-circle w-14 h-14 translate-y-0
-//                transition-all duration-200 active:scale-90 hover:scale-105"
-//             onClick={handleSendRequest}
-//           >
-//             <span className="text-3xl">❌</span>
-//           </button>
-
-//           <button
-//             className="btn btn-circle w-16 h-16 -translate-y-0 shadow-lg
-//                transition-all duration-200 active:scale-90 hover:scale-110"
-//             onClick={handleSendRequest("interested", _id)}
-//           >
-//             <span className="text-3xl">💚</span>
-//           </button>
-
-//           <button
-//             className="btn btn-circle w-12 h-12 translate-y-3
-//                transition-all duration-200 active:scale-90 hover:scale-105"
-//             onClick={handleSendRequest}
-//           >
-//             <span className="text-3xl">📍</span>
-//           </button>
-
-//       </div>
-//     </div>
-//   </div>
-// );
-// }
-// export default Feedcard;
-// src/components/Feedcard.jsx
 import axios from "axios";
 import { useDispatch } from "react-redux";
 import { removeUserFromFeed } from "../utils/feedslice";
 import { useState } from "react";
-import { BASE_URL } from "../utils/constant";
 
-const Feedcard = ({ user }) => {
+const FALLBACK_AVATAR =
+  "https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg";
+
+const Feedcard = ({ user, preview = false }) => {
   const dispatch = useDispatch();
+  const [pendingAction, setPendingAction] = useState(null);
+  const [error, setError] = useState("");
+
   if (!user) return null;
 
-  const { _id, firstName, lastName, photoUrl, age, about } = user;
+  const { _id, firstName, lastName, photoUrl, age, about, skills = [] } = user;
+  const skillList = Array.isArray(skills)
+    ? skills
+    : String(skills)
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean);
 
   const handleSendRequest = async (status) => {
+    if (preview || pendingAction) return;
+    setPendingAction(status);
+    setError("");
     try {
-      await axios.post(
-        BASE_URL+`/request/send/${status}/${_id}`,
-        {},
-        { withCredentials: true }
-      );
+      await axios.post(`/request/send/${status}/${_id}`, {});
       dispatch(removeUserFromFeed(_id));
     } catch (err) {
-      console.log(err);
+      setError(err.response?.data?.message || "Could not send the request.");
+    } finally {
+      setPendingAction(null);
     }
   };
 
   return (
-    <div className="flex justify-center mt-16">
-      {/* Background Card */}
-      <div className="relative w-80 h-105 rounded-3xl bg-linear-to-br from-[#1e1b4b] to-[#312e81] shadow-2xl ">
-
-        {/* Profile Image */}
-        <div className="absolute -top-15 left-1/2 -translate-x-1/2 mt-25">
-          <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden shadow-xl">
-            <img
-              src={photoUrl}
-              alt="profile"
-              className="w-full h-full object-cover"
-            />
+    <div className="mx-auto w-full max-w-sm animate-fade-up">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-linear-to-b from-white/[0.08] to-white/[0.03] p-1 shadow-2xl shadow-black/50">
+        <div className="relative overflow-hidden rounded-[1.35rem] bg-ink-900">
+          {/* Cover */}
+          <div className="relative h-44 bg-linear-to-br from-brand-600/70 via-brand-500/30 to-accent-400/40">
+            <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_20%_20%,white_1px,transparent_1px)] [background-size:18px_18px]" />
+            <div className="absolute -right-6 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="pt-24 px-6 text-center text-white mt-25">
-          <h2 className="text-2xl font-semibold tracking-wide font-mono">
-            {firstName} {lastName}
-            <span className="text-indigo-300">, {age}</span>
-          </h2>
+          {/* Avatar */}
+          <div className="relative -mt-14 flex justify-center">
+            <div className="rounded-full bg-linear-to-br from-brand-400 to-accent-400 p-[3px] shadow-xl shadow-brand-600/30">
+              <img
+                src={photoUrl || FALLBACK_AVATAR}
+                alt={`${firstName || "Developer"}'s avatar`}
+                onError={(event) => {
+                  event.currentTarget.src = FALLBACK_AVATAR;
+                }}
+                className="h-28 w-28 rounded-full border-4 border-ink-900 object-cover"
+              />
+            </div>
+          </div>
 
-          <p className="mt-3 text-sm text-indigo-200 line-clamp-4 font-mono font-bold">
-            {about}
-          </p>
+          <div className="px-6 pb-7 pt-4 text-center">
+            <h2 className="text-2xl font-bold text-white">
+              {firstName} {lastName}
+              {age && <span className="font-normal text-slate-400">, {age}</span>}
+            </h2>
 
-          {/* Buttons */}
-          <div className="flex justify-between items-center mt-10 px-4">
-            <button
-              className="btn btn-circle bg-white/10 border-none hover:bg-red-500/80 transition"
-              onClick={() => handleSendRequest("ignore")}
-            >
-              ❌
-            </button>
+            <p className="mt-3 min-h-10 text-sm leading-relaxed text-slate-300">
+              {about || "This developer is still writing their story."}
+            </p>
 
-            <button
-              className="btn btn-circle w-16 h-16 bg-green-400 text-2xl
-              border-none shadow-lg hover:scale-110 active:scale-95 transition"
-              onClick={() => handleSendRequest("interested")}
-            >
-              💚
-            </button>
+            {skillList.length > 0 && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {skillList.slice(0, 6).map((skill) => (
+                  <span key={skill} className="chip">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            )}
 
-            <button
-              className="btn btn-circle bg-white/10 border-none hover:bg-blue-500/80 transition"
-              onClick={() => handleSendRequest("maybe")}
-            >
-              ⭐
-            </button>
+            {!preview && (
+              <>
+                <div className="mt-7 flex items-center justify-center gap-8">
+                  <button
+                    onClick={() => handleSendRequest("ignore")}
+                    disabled={Boolean(pendingAction)}
+                    aria-label="Skip this developer"
+                    className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/5 text-xl transition hover:scale-105 hover:border-rose-400/60 hover:bg-rose-500/15 active:scale-95 disabled:opacity-50"
+                  >
+                    <span className="transition group-hover:scale-110">✕</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleSendRequest("interested")}
+                    disabled={Boolean(pendingAction)}
+                    aria-label="Send connection request"
+                    className="flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-emerald-400 to-emerald-500 text-2xl text-white shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-400/10 transition hover:scale-105 active:scale-95 disabled:opacity-50"
+                  >
+                    {pendingAction === "interested" ? (
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                    ) : (
+                      "♥"
+                    )}
+                  </button>
+                </div>
+                {error && (
+                  <p className="mt-4 text-xs text-rose-300" role="alert">
+                    {error}
+                  </p>
+                )}
+              </>
+            )}
+
+            {preview && (
+              <div className="mt-7 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-slate-400">
+                Live preview of your public profile
+              </div>
+            )}
           </div>
         </div>
       </div>

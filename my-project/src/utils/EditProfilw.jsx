@@ -1,189 +1,299 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { addUser } from "./userSlice";
 import Feedcard from "../assets/feedcard";
-import { BASE_URL } from "./constant";
+
+const emptyForm = {
+  firstName: "",
+  lastName: "",
+  about: "",
+  age: "",
+  gender: "",
+  skills: "",
+  photoUrl: "",
+};
 
 const EditProfile = ({ user }) => {
   const dispatch = useDispatch();
+  const storeUser = useSelector((store) => store.user);
+  const activeUser = user || storeUser;
 
-  console.log("Edit profile message", user)
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const [firstName, setFirstName] = useState(user?.firstName || "");
-  const [lastName, setLastName] = useState(user?.lastName || "");
-  const [about, setAbout] = useState(user?.about || "");
-  const [age, setAge] = useState(user?.age || "");
-  const [skills, setSkills] = useState(user?.skills || "");
-  const [photoUrl, setPhotoUrl] = useState(user?.photoUrl || "");
-  const [showToast, setShowToast] = useState(false);
-
-  // Update states when user changes
   useEffect(() => {
-    if (user) {
-      setFirstName(user.firstName || "");
-      setLastName(user.lastName || "");
-      setAbout(user.about || "");
-      setAge(user.age || "");
-      setSkills(user.skills || "");
-      setPhotoUrl(user.photoUrl || "");
-    }
-  }, [user]);
+    if (!activeUser) return;
+    setForm({
+      firstName: activeUser.firstName || "",
+      lastName: activeUser.lastName || "",
+      about: activeUser.about || "",
+      age: activeUser.age || "",
+      gender: activeUser.gender || "",
+      skills: Array.isArray(activeUser.skills)
+        ? activeUser.skills.join(", ")
+        : activeUser.skills || "",
+      photoUrl: activeUser.photoUrl || "",
+    });
+  }, [activeUser]);
 
-  if (!user) {
-    return <div>Loading...</div>;
+  if (!activeUser) {
+    return (
+      <div className="app-container py-16">
+        <div className="glass-card mx-auto max-w-md p-8 text-center text-slate-400">
+          Loading your profile…
+        </div>
+      </div>
+    );
   }
 
-  const SaveProfile = async () => {
+  const updateField = (event) => {
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const saveProfile = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setToast(null);
+
+    const skills = form.skills
+      .split(",")
+      .map((skill) => skill.trim())
+      .filter(Boolean);
+
+    if (skills.length > 10) {
+      setToast({ type: "error", message: "You can add up to 10 skills." });
+      setSaving(false);
+      return;
+    }
+
     try {
-      const res = await axios.patch(
-        BASE_URL+"/profile/edit",
-        {
-          firstName,
-          lastName,
-          age,
-          about,
-          skills,
-          photoUrl
-        },
-        { withCredentials: true }
-      );
-      console.log("API Response:", res.data);
-      dispatch(addUser(res.data));
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      const res = await axios.patch("/profile/edit", {
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        age: form.age === "" ? undefined : Number(form.age),
+        gender: form.gender || undefined,
+        about: form.about.trim(),
+        skills,
+        photoUrl: form.photoUrl.trim() || undefined,
+      });
+
+      dispatch(addUser(res.data.user));
+      setToast({ type: "success", message: "Profile saved successfully." });
+      setTimeout(() => setToast(null), 3000);
     } catch (error) {
-      console.error(error);
+      setToast({
+        type: "error",
+        message: error.response?.data?.message || "Could not save your profile.",
+      });
+    } finally {
+      setSaving(false);
     }
   };
-return (
-  <div className="flex justify-center ">
-    
-    {/* ===== Form Section ===== */}
-    <div className="justify-items-center mt-4 px-10 h-auto">
-      <fieldset className="fieldset bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-box w-xs p-6 shadow-xl">
 
-        <label className="label text-indigo-300 font-mono font-semibold -mt-3">
-          First Name
-        </label>
-        <input
-          type="text"
-          className="input bg-slate-700 text-indigo-100 placeholder-indigo-300
-          focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-        />
+  const previewSkills = form.skills
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
 
-        <label className="label text-indigo-300 font-mono font-semibold">
-          Last Name
-        </label>
-        <input
-          type="text"
-          className="input bg-slate-700 text-indigo-100
-          focus:ring-2 focus:ring-indigo-500 font-mono"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-        />
-
-        <label className="label text-indigo-300 font-mono font-semibold">
-          Age
-        </label>
-        <input
-          type="text"
-          className="input bg-slate-700 text-indigo-100
-          focus:ring-2 focus:ring-indigo-500 font-mono"
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-        />
-
-        <label className="label text-indigo-300 font-mono font-semibold">
-          About
-        </label>
-        <input
-          type="text"
-          className="input bg-slate-700 text-indigo-100 font-mono
-          focus:ring-2 focus:ring-indigo-500"
-          value={about}
-          onChange={(e) => setAbout(e.target.value)}
-        />
-
-        <label className="label text-indigo-300 font-mono font-semibold">
-          Skills
-        </label>
-        <textarea
-          className="textarea textarea-bordered h-24 resize-none
-          bg-slate-700 text-indigo-100 font-mono
-          focus:ring-2 focus:ring-indigo-500"
-          value={skills}
-          onChange={(e) => setSkills(e.target.value)}
-          placeholder="React, Node, MongoDB..."
-        />
-
-        <label className="label text-indigo-300 font-mono font-semibold">
-          Photo URL
-        </label>
-        <input
-          type="text"
-          className="input bg-slate-700 text-indigo-100 font-mono
-          focus:ring-2 focus:ring-indigo-500"
-          value={photoUrl}
-          onChange={(e) => setPhotoUrl(e.target.value)}
-        />
-
-        <button
-          className="btn mt-4 bg-indigo-600 hover:bg-indigo-500 border-none
-          text-white font-mono tracking-wide shadow-md"
-          onClick={SaveProfile}
-        >
-          Save
-        </button>
-      </fieldset>
-    </div>
-
-    {/* ===== Preview ===== */}
-    <div className="mt-10">
-      <Feedcard
-        preview
-        user={{
-          id: "xyz",
-          firstName,
-          lastName,
-          age,
-          photoUrl,
-          skills,
-          about,
-        }}
-      />
-    </div>
-
-    {/* Toast */}
-    {showToast && (
-      <div className="fixed top-5 left-1/2 transform -translate-x-1/2
-      bg-emerald-500 text-white px-6 py-2 rounded-lg shadow-xl z-50 font-mono">
-        Profile Saved Successfully
+  return (
+    <div className="app-container py-10">
+      <div className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-300">
+          Your account
+        </p>
+        <h1 className="section-title mt-2">Edit profile</h1>
+        <p className="mt-2 text-sm text-slate-400">
+          Keep it short and human — other developers will see this in their feed.
+        </p>
       </div>
-    )}
-  </div>
-);
-}
+
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <form onSubmit={saveProfile} className="glass-card p-6 sm:p-8">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="firstName" className="field-label">
+                First name
+              </label>
+              <input
+                id="firstName"
+                name="firstName"
+                className="field-input"
+                value={form.firstName}
+                onChange={updateField}
+                required
+                maxLength={20}
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName" className="field-label">
+                Last name
+              </label>
+              <input
+                id="lastName"
+                name="lastName"
+                className="field-input"
+                value={form.lastName}
+                onChange={updateField}
+                maxLength={20}
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="age" className="field-label">
+                Age
+              </label>
+              <input
+                id="age"
+                name="age"
+                type="number"
+                min={18}
+                max={120}
+                className="field-input"
+                value={form.age}
+                onChange={updateField}
+              />
+            </div>
+            <div>
+              <label htmlFor="gender" className="field-label">
+                Gender
+              </label>
+              <select
+                id="gender"
+                name="gender"
+                className="field-input"
+                value={form.gender}
+                onChange={updateField}
+              >
+                <option value="">Prefer not to say</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="others">Others</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <label htmlFor="about" className="field-label">
+              About you
+            </label>
+            <textarea
+              id="about"
+              name="about"
+              rows={4}
+              maxLength={300}
+              className="field-input resize-none"
+              value={form.about}
+              onChange={updateField}
+              placeholder="Frontend engineer who loves design systems, coffee and clean commits."
+            />
+            <p className="mt-1.5 text-right text-xs text-slate-500">
+              {form.about.length}/300
+            </p>
+          </div>
+
+          <div className="mt-2">
+            <label htmlFor="skills" className="field-label">
+              Skills
+            </label>
+            <input
+              id="skills"
+              name="skills"
+              className="field-input"
+              value={form.skills}
+              onChange={updateField}
+              placeholder="React, Node.js, MongoDB, TypeScript"
+            />
+            <p className="mt-1.5 text-xs text-slate-500">
+              Separate skills with commas. Up to 10.
+            </p>
+          </div>
+
+          <div className="mt-5">
+            <label htmlFor="photoUrl" className="field-label">
+              Photo URL
+            </label>
+            <input
+              id="photoUrl"
+              name="photoUrl"
+              type="url"
+              className="field-input"
+              value={form.photoUrl}
+              onChange={updateField}
+              placeholder="https://example.com/avatar.jpg"
+            />
+          </div>
+
+          <div className="mt-7 flex items-center gap-3">
+            <button type="submit" disabled={saving} className="btn-brand">
+              {saving ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost-brand"
+              onClick={() =>
+                setForm({
+                  firstName: activeUser.firstName || "",
+                  lastName: activeUser.lastName || "",
+                  about: activeUser.about || "",
+                  age: activeUser.age || "",
+                  gender: activeUser.gender || "",
+                  skills: Array.isArray(activeUser.skills)
+                    ? activeUser.skills.join(", ")
+                    : activeUser.skills || "",
+                  photoUrl: activeUser.photoUrl || "",
+                })
+              }
+            >
+              Reset
+            </button>
+          </div>
+        </form>
+
+        <div className="lg:sticky lg:top-24">
+          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Profile preview
+          </p>
+          <Feedcard
+            preview
+            user={{
+              _id: activeUser._id,
+              firstName: form.firstName,
+              lastName: form.lastName,
+              age: form.age,
+              photoUrl: form.photoUrl,
+              skills: previewSkills,
+              about: form.about,
+            }}
+          />
+        </div>
+      </div>
+
+      {toast && (
+        <div
+          role="status"
+          className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border px-5 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl ${
+            toast.type === "success"
+              ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-200"
+              : "border-rose-400/30 bg-rose-500/15 text-rose-200"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default EditProfile;
-//   return (<div className="flex justify-center">
-//     <div className="justify-items-center mt-10 px-10 h-auto ">
-//       <fieldset className="fieldset bg-base-300 border-base-300 rounded-box w-xs border p-4">
-//         <label className="label text-blue-50 font-mono font-bold">First Name
-
-//         </label>
-
-//         <input type="text" className="input text-blue-50 font-mono font-bold" value={firstName} onChange={(e) => setFirstName(e.target.value)} /> <label className="label text-blue-50 font-mono font-bold">Last Name</label>
-//         <input type="text" className="input text-blue-50 font-mono font-bold" value={lastName} onChange={(e) => setLastName(e.target.value)} /> <label className="label text-blue-50 font-mono font-bold">age</label>
-//         <input type="text" className="input text-blue-50 font-mono font-bold" value={age} onChange={(e) => setAge(e.target.value)} /> <label className="label text-blue-50 font-mono font-bold">About</label> <input type="text" className="input h-10 text-blue-50 font-mono font-bold" value={about} onChange={(e) => setAbout(e.target.value)} />
-//         <label className="label text-blue-50 font-mono font-bold">Skills</label>
-//         <textarea className="textarea textarea-bordered h-24 text-blue-50 bg-base-300 resize-none font-mono font-bold" value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Enter your skills..." />
-//         <label className="label text-blue-50 font-mono font-bold">Photo URL</label>
-//         <input type="text" className="input h-10 text-blue-50 font-mono font-bold" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />
-//         <button className="btn btn-primary font-mono font-bold" onClick={SaveProfile}> Save </button> </fieldset> </div> <div className="mt-10">
-//       <Feedcard preview user={{ id: "xyz", firstName, lastName, age, photoUrl, skills, about }} />
-//     </div> {showToast && (<div className="fixed top-5 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50"> Profile Saved Successfully </div>)} </div>);
-// };
-
-
