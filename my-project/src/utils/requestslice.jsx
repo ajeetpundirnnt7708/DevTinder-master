@@ -1,0 +1,14 @@
+import { createSlice } from "@reduxjs/toolkit";
+import { removeconnection } from "./connectionslise";
+const requestSlice=createSlice({
+    name:"request",
+    initialState:[],
+    reducers:{
+        addRequest:(state,action)=>{
+            return action.payload
+        },
+        removeRequest:()=>[]
+    }
+})
+export const {addRequest,removeRequest}=requestSlice.actions;
+export default requestSlice.reducer
